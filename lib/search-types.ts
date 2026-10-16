@@ -3,3 +3,4 @@ export type Source = { id: number; title: string; url: string; excerpt: string; 
 export type Claim = { text: string; citations: number[] };
 export type SearchResult = { query: string; mode: "short" | "long"; status: "answered" | "partial" | "insufficient"; claims: Claim[]; uncertainties: string[]; sources: Source[]; searchedAt: string };
 
+

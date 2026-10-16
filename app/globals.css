@@ -8,6 +8,12 @@
 @media(prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
 
 /* The search chat keeps the original cream, forest green and lime palette. */
+.settings-dialog{overflow-y:auto;margin:auto}
+.remember-choice{display:flex;align-items:flex-start;gap:10px;padding:13px 14px;background:#edf2e4;border:1px solid #dce6cf;border-radius:9px;cursor:pointer}
+.remember-choice input{accent-color:var(--green);width:16px;height:16px;flex-shrink:0;margin:2px 0 0}
+.remember-choice span{display:flex;flex-direction:column;gap:4px}
+.remember-choice strong{font-size:11px;font-weight:600;color:#405c3b}
+.remember-choice small{font-size:9px;line-height:1.6;color:#75866c}
 .chat-workspace{max-width:940px}
 .chat-workspace.has-result{padding-top:34px}
 .chat-workspace .intro{margin-bottom:36px}

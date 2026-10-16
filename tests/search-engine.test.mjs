@@ -74,3 +74,4 @@ test('provider redirects are not followed with credentials', async () => {
   assert.equal(mock.calls[0].redirect, 'manual');
 });
 
+

@@ -5,7 +5,17 @@ import type { SearchResult, SessionKeys } from "@/lib/search-types";
 
 const suggestions = ["AI agent ต่างจาก chatbot ยังไง?", "ทำไมท้องฟ้าตอนเย็นถึงเป็นสีส้ม?", "มีโมเดล AI อะไรให้เรียก API ฟรีบ้าง?"];
 const emptyKeys: SessionKeys = { tavily: "", gemini: "", groq: "" };
+const storageKey = "sift:api-keys:v1";
 type SearchWindow = Window & { __SIFT_API_URL__?: string };
+function readStoredKeys(kind: "localStorage" | "sessionStorage"): SessionKeys | null {
+  try {
+    const raw = window[kind].getItem(storageKey);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as Partial<SessionKeys>;
+    if (typeof value.tavily !== "string" || typeof value.gemini !== "string" || typeof value.groq !== "string") return null;
+    return value.tavily && (value.gemini || value.groq) ? { tavily: value.tavily, gemini: value.gemini, groq: value.groq } : null;
+  } catch { return null; }
+}
 const relatedSources = (result: SearchResult) => {
   const cited = new Set(result.claims.flatMap(claim => claim.citations));
   const chosen = result.sources.filter(source => cited.has(source.id));
@@ -18,6 +28,7 @@ export default function Home() {
   const [mode, setMode] = useState<"short" | "long">("short");
   const [keys, setKeys] = useState<SessionKeys>(emptyKeys);
   const [draftKeys, setDraftKeys] = useState<SessionKeys>(emptyKeys);
+  const [rememberDevice, setRememberDevice] = useState(false);
   const [turns, setTurns] = useState<SearchResult[]>([]);
   const [history, setHistory] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +43,12 @@ export default function Home() {
   const bottom = useRef<HTMLDivElement>(null);
   const connected = !!(keys.tavily && (keys.gemini || keys.groq));
 
+  useEffect(() => {
+    const saved = readStoredKeys("localStorage");
+    if (saved) { setKeys(saved); setRememberDevice(true); return; }
+    const session = readStoredKeys("sessionStorage");
+    if (session) setKeys(session);
+  }, []);
   useEffect(() => { if (open) modal.current?.showModal(); else modal.current?.close(); }, [open]);
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => { if (turns.length || loading) bottom.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [turns.length, loading]);
@@ -62,6 +79,15 @@ export default function Home() {
     event.preventDefault();
     const clean = { tavily: draftKeys.tavily.trim(), gemini: draftKeys.gemini.trim(), groq: draftKeys.groq.trim() };
     if (!clean.tavily || !(clean.gemini || clean.groq)) { setSettingsError("ใส่คีย์ Tavily และ Gemini หรือ Groq อีกหนึ่งตัวก่อนนะ"); return; }
+    try {
+      const destination = rememberDevice ? window.localStorage : window.sessionStorage;
+      const previous = rememberDevice ? window.sessionStorage : window.localStorage;
+      destination.setItem(storageKey, JSON.stringify(clean));
+      previous.removeItem(storageKey);
+    } catch {
+      setSettingsError("เบราว์เซอร์บันทึกคีย์ไม่ได้ ลองตรวจการตั้งค่าพื้นที่เก็บข้อมูลก่อนนะ");
+      return;
+    }
     setKeys(clean); setDraftKeys(emptyKeys); setOpen(false); setPendingSearch(false);
     if (pendingSearch) void search(clean);
   }
@@ -70,10 +96,15 @@ export default function Home() {
     try { await navigator.clipboard.writeText(answer); setCopiedIndex(index); setTimeout(() => setCopiedIndex(null), 2000); }
     catch { setError("คัดลอกอัตโนมัติไม่ได้ ลองเลือกข้อความแล้วคัดลอกเองนะ"); }
   }
+  function forgetKeys() {
+    try { window.localStorage.removeItem(storageKey); } catch { /* Storage may be disabled. */ }
+    try { window.sessionStorage.removeItem(storageKey); } catch { /* Storage may be disabled. */ }
+    setKeys(emptyKeys); setDraftKeys(emptyKeys); setRememberDevice(false); setOpen(false); setPendingSearch(false);
+  }
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <a href="./" className="brand" aria-label="Sift หน้าหลัก"><span className="brand-symbol"><Leaf size={23}/></span><span>sift<span className="brand-period">.</span></span></a>
+      <button type="button" onClick={newSearch} className="brand" aria-label="เริ่มแชตใหม่"><span className="brand-symbol"><Leaf size={23}/></span><span>sift<span className="brand-period">.</span></span></button>
       <span className="brand-description">ถามได้เลย เดี๋ยวช่วยหาคำตอบ</span>
       <button className="new-search" onClick={newSearch}><Plus size={18}/> แชตใหม่ <span>↗</span></button>
       <div className="history-heading">คำถามในหน้านี้ {history.length > 0 && <button onClick={() => setHistory([])} aria-label="ล้างรายการคำถาม"><Trash2 size={14}/></button>}</div>
@@ -104,7 +135,7 @@ export default function Home() {
         <footer className="workspace-footer"><span className="footer-spark">✳</span> ตอบจากสิ่งที่ค้นพบ ถ้าไม่พอจะบอกตรง ๆ <span className="footer-separator">·</span><button onClick={showSettings}>ใช้คีย์ของคุณเอง</button></footer><div ref={bottom}/>
       </div>
     </main>
-    <dialog ref={modal} className="settings-dialog" onCancel={() => { setOpen(false); setPendingSearch(false); }} onClick={event => { if (event.target === modal.current) { setOpen(false); setPendingSearch(false); } }}><div className="dialog-content"><button className="close-dialog" onClick={() => { setOpen(false); setPendingSearch(false); }} aria-label="ปิดหน้าตั้งค่า"><X size={20}/></button><span className="dialog-icon"><KeyRound size={22}/></span><p className="eyebrow">MAKE IT YOURS</p><h2>เชื่อมต่อก่อนเริ่มคุย</h2><p className="dialog-description">ใส่คีย์ของคุณเอง ใช้เฉพาะตอนค้นหาและตอบ คีย์อยู่ในหน่วยความจำของหน้านี้ พอรีเฟรชก็ต้องใส่ใหม่</p><form onSubmit={saveKeys} autoComplete="off"><div className="key-field"><label htmlFor="tavily-key">Tavily <span>สำหรับค้นเว็บ · จำเป็น</span></label><input id="tavily-key" type="password" value={draftKeys.tavily} onChange={event => setDraftKeys(value => ({ ...value, tavily: event.target.value }))} placeholder="tvly-…" autoComplete="off" maxLength={512}/><a href="https://app.tavily.com/" target="_blank" rel="noopener noreferrer">รับคีย์ Tavily <ExternalLink size={12}/></a></div><div className="key-divider">เลือกโมเดลอย่างน้อยหนึ่งตัว</div><div className="key-field"><label htmlFor="gemini-key">Gemini <span>โมเดลหลัก</span></label><input id="gemini-key" type="password" value={draftKeys.gemini} onChange={event => setDraftKeys(value => ({ ...value, gemini: event.target.value }))} placeholder="Gemini API key" autoComplete="off" maxLength={512}/><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">รับคีย์ Gemini <ExternalLink size={12}/></a></div><div className="key-field"><label htmlFor="groq-key">Groq <span>ใช้เดี่ยว ๆ หรือเป็นตัวสำรอง</span></label><input id="groq-key" type="password" value={draftKeys.groq} onChange={event => setDraftKeys(value => ({ ...value, groq: event.target.value }))} placeholder="gsk_…" autoComplete="off" maxLength={512}/><a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">รับคีย์ Groq <ExternalLink size={12}/></a></div>{settingsError && <p className="settings-error" role="alert">{settingsError}</p>}<button className="save-keys" type="submit">บันทึกแล้วเริ่มถาม <ArrowUpRight size={16}/></button><p className="quota-note">การใช้งานขึ้นกับโควตา API ของแต่ละบริการ ถ้าใช้บัญชีที่เปิดชำระเงิน อาจมีค่าใช้จ่ายตามแพ็กเกจของคุณ</p>{connected && <button type="button" className="forget-keys" onClick={() => { setKeys(emptyKeys); setDraftKeys(emptyKeys); setOpen(false); setPendingSearch(false); }}>ล้างคีย์จากหน้านี้</button>}</form></div></dialog>
+    <dialog ref={modal} className="settings-dialog" onCancel={() => { setOpen(false); setPendingSearch(false); }} onClick={event => { if (event.target === modal.current) { setOpen(false); setPendingSearch(false); } }}><div className="dialog-content"><button className="close-dialog" onClick={() => { setOpen(false); setPendingSearch(false); }} aria-label="ปิดหน้าตั้งค่า"><X size={20}/></button><span className="dialog-icon"><KeyRound size={22}/></span><p className="eyebrow">MAKE IT YOURS</p><h2>เชื่อมต่อก่อนเริ่มคุย</h2><p className="dialog-description">ใส่คีย์ครั้งเดียว แล้วถามต่อได้เลย คีย์จะอยู่ในเบราว์เซอร์ของคุณเพื่อใช้หลังรีเฟรช</p><form onSubmit={saveKeys} autoComplete="off"><div className="key-field"><label htmlFor="tavily-key">Tavily <span>สำหรับค้นเว็บ · จำเป็น</span></label><input id="tavily-key" type="password" value={draftKeys.tavily} onChange={event => setDraftKeys(value => ({ ...value, tavily: event.target.value }))} placeholder="tvly-…" autoComplete="off" maxLength={512}/><a href="https://app.tavily.com/" target="_blank" rel="noopener noreferrer">รับคีย์ Tavily <ExternalLink size={12}/></a></div><div className="key-divider">เลือกโมเดลอย่างน้อยหนึ่งตัว</div><div className="key-field"><label htmlFor="gemini-key">Gemini <span>โมเดลหลัก</span></label><input id="gemini-key" type="password" value={draftKeys.gemini} onChange={event => setDraftKeys(value => ({ ...value, gemini: event.target.value }))} placeholder="Gemini API key" autoComplete="off" maxLength={512}/><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">รับคีย์ Gemini <ExternalLink size={12}/></a></div><div className="key-field"><label htmlFor="groq-key">Groq <span>ใช้เดี่ยว ๆ หรือเป็นตัวสำรอง</span></label><input id="groq-key" type="password" value={draftKeys.groq} onChange={event => setDraftKeys(value => ({ ...value, groq: event.target.value }))} placeholder="gsk_…" autoComplete="off" maxLength={512}/><a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer">รับคีย์ Groq <ExternalLink size={12}/></a></div><label className="remember-choice"><input type="checkbox" checked={rememberDevice} onChange={event => setRememberDevice(event.target.checked)}/><span><strong>จำคีย์บนเครื่องนี้</strong><small>เปิดเว็บใหม่ก็ใช้ได้ ไม่ควรเลือกบนเครื่องที่ใช้ร่วมกัน</small></span></label>{settingsError && <p className="settings-error" role="alert">{settingsError}</p>}<button className="save-keys" type="submit">บันทึกแล้วเริ่มถาม <ArrowUpRight size={16}/></button><p className="quota-note">คีย์ถูกเก็บในเบราว์เซอร์แบบไม่เข้ารหัส และส่งผ่าน HTTPS เมื่อถาม ระบบไม่บันทึกคีย์ลงฐานข้อมูล การใช้งานขึ้นกับโควตา API ของแต่ละบริการ</p>{connected && <button type="button" className="forget-keys" onClick={forgetKeys}>ล้างคีย์จากเบราว์เซอร์นี้</button>}</form></div></dialog>
   </div>;
 }
 

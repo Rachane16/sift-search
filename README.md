@@ -1,22 +1,37 @@
 # Sift — ถามมาเลย
 
-หน้าเว็บแชตค้นข้อมูลภาษาไทยบน [GitHub Pages](https://rachane16.github.io/sift-search/) ถามต่อจากคำถามก่อนหน้าได้ เลือกตอบสั้นหรือยาว และมีลิงก์สั้น ๆ ให้อ่านต้นฉบับต่อ ถ้าข้อมูลไม่พอ ระบบจะบอกตามตรง
+Sift เป็นแชตค้นข้อมูลภาษาไทย ถามต่อจากคำถามเดิมได้ เลือกคำตอบสั้นหรือยาวได้ และมีลิงก์ต้นทางสั้น ๆ ไว้อ่านต่อ ถ้าข้อมูลที่ค้นพบไม่พอ ระบบจะบอกว่าไม่แน่ใจ
 
-หน้าเว็บในรีโปนี้เป็น **static frontend** ส่วน API ค้นหาอยู่ที่ [Sift Sites](https://sift-search-th.tealshell64.chatgpt.site) และรันบนเซิร์ฟเวอร์แยก เพราะ [GitHub Pages ใช้เผยแพร่ไฟล์ static](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site) หน้าเว็บส่งคำถามพร้อมคีย์ที่ผู้ใช้กรอกผ่าน HTTPS ไปยัง API นี้ คีย์อยู่ในหน่วยความจำของแท็บ ไม่ฝังในโค้ด ไม่เก็บใน localStorage และต้องกรอกใหม่หลังรีเฟรช
+## ใช้งาน
 
-ปกติคำถามหนึ่งใช้ Tavily search หนึ่งครั้งและโมเดล Gemini หรือ Groq หนึ่งครั้ง โมเดลต้องคืนแหล่งข้อมูลและข้อความจากผลค้น โปรแกรมตรวจว่าลิงก์และข้อความนั้นมีอยู่จริงก่อนแสดงคำตอบ แต่ไม่ได้รับประกันว่าการตีความของโมเดลถูกทุกเรื่อง
+เปิดเว็บ กด **เชื่อมต่อเพื่อเริ่ม** แล้วใส่คีย์ Tavily กับ Gemini หรือ Groq อย่างน้อยหนึ่งตัว เว็บจำคีย์ใน `sessionStorage` เพื่อให้รีเฟรชแล้วถามต่อได้ในแท็บเดิม หากเลือก **จำคีย์บนเครื่องนี้** เว็บจะเก็บคีย์ใน `localStorage` เพื่อเปิดเว็บใหม่แล้วใช้ต่อได้ มีปุ่ม **ล้างคีย์จากเบราว์เซอร์นี้** ในหน้าตั้งค่า คีย์ในเบราว์เซอร์ไม่ได้เข้ารหัส จึงไม่ควรเลือกจำบนเครื่องที่ใช้ร่วมกัน ระหว่างค้นหา คีย์ถูกส่งผ่าน HTTPS ไปยัง API ของ Sift และจากนั้นไปยังบริการที่เลือก ไม่มีการบันทึกคีย์ลงฐานข้อมูลหรือไฟล์ GitHub
 
-## พัฒนาและเผยแพร่
+เว็บใช้ Tavily basic search หนึ่งครั้ง และโมเดลหนึ่งครั้งต่อคำถามในกรณีปกติ ต่างจากรุ่นก่อนที่เรียกโมเดลสองรอบ จึงควรตอบเร็วขึ้น แต่ความเร็วจริงยังขึ้นกับ Tavily, โมเดล และเครือข่าย ผลค้นจำกัด 4–5 แหล่งและส่งเฉพาะ excerpt เพื่อควบคุมเวลาและโทเคน
+
+โมเดลต้องระบุรหัสแหล่งข้อมูลและคัดข้อความจาก excerpt มาเป็นหลักฐานให้แต่ละย่อหน้า โปรแกรมตรวจว่ารหัสและข้อความนั้นมีอยู่จริง ก่อนแสดงคำตอบและลิงก์จากผลค้น ไม่มีการตรวจความจริงโดยมนุษย์ และข้อความที่มีอยู่จริงยังอาจถูกตีความผิดได้ เรื่องสำคัญควรเปิดอ่านต้นฉบับ
+
+## โครงสร้างการโฮสต์
+
+- หน้าเว็บ GitHub Pages: `https://rachane16.github.io/sift-search/` เป็นไฟล์ static ใน `docs/`
+- API: `https://sift-search-th.tealshell64.chatgpt.site/api/search` รันบน Sites/Cloudflare Worker เพราะ GitHub Pages ไม่รันโค้ดเซิร์ฟเวอร์
+- API รับคำขอจาก Sift Sites และ `https://rachane16.github.io` เท่านั้นผ่านการตรวจ Origin/CORS ไม่มีคีย์ผู้ให้บริการฝังในไฟล์ GitHub
+- หน้าเว็บและ API เป็นสาธารณะ แต่ผู้ใช้แต่ละคนต้องใช้คีย์ API ของตัวเอง โควตาและค่าใช้จ่ายขึ้นกับบัญชีนั้น
+
+## พัฒนา
+
+Node.js 22.13 ขึ้นไป:
 
 ```sh
 npm install
 npm run dev
-npm run build
+npm run build:pages
+node --test tests/search-engine.test.mjs
+node node_modules/typescript/bin/tsc --noEmit
 ```
 
-`github-pages/` เป็น entry point, `app/` เป็นหน้าและ API route, `lib/search-engine.ts` เป็นตรรกะค้นหา, `tests/` เป็นการทดสอบ, `docs/` เป็นไฟล์ที่ build แล้วสำหรับ GitHub Pages ตั้งค่า Pages ให้เผยแพร่จาก `main` และ `/docs`
+`github-pages/` เป็น entry point สำหรับหน้า static และ `vite.pages.config.ts` สร้างไฟล์ลง `docs/` ส่วน `app/api/search/route.ts` กับ `lib/search-engine.ts` เป็น backend ที่ต้องโฮสต์แยกจาก GitHub Pages
 
-GitHub Pages ไม่รัน API route ในรีโปนี้ ไฟล์ route และ engine เปิดเผยไว้เพื่อให้ตรวจดูและนำไปโฮสต์บน runtime ที่รองรับ หากจะย้าย API ไปโฮสต์อื่น ต้องแก้ `window.__SIFT_API_URL__` ใน `github-pages/index.html` แล้ว build ใหม่
+การทดสอบอัตโนมัติจำลองคำตอบจากผู้ให้บริการ ยังไม่ได้ใช้คีย์จริงของผู้ใช้เพื่อวัดเวลาและความแม่นยำปลายทาง
 
-ยังไม่ได้ทดสอบคำถามจริงด้วยคีย์ของผู้ใช้ ความเร็วและความแม่นยำปลายทางขึ้นกับ Tavily, โมเดล และข้อมูลที่ค้นพบ
+ข้อมูลบริการ: [Tavily Search API](https://docs.tavily.com/documentation/api-reference/endpoint/search), [Gemini API](https://ai.google.dev/gemini-api/docs), [Groq API](https://console.groq.com/docs)
 
