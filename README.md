@@ -1,0 +1,37 @@
+# Sift — ถามมาเลย
+
+Sift เป็นแชตค้นข้อมูลภาษาไทย ถามต่อจากคำถามเดิมได้ เลือกคำตอบสั้นหรือยาวได้ และมีลิงก์ต้นทางสั้น ๆ ไว้อ่านต่อ ถ้าข้อมูลที่ค้นพบไม่พอ ระบบจะบอกว่าไม่แน่ใจ
+
+## ใช้งาน
+
+เปิดเว็บ กด **เชื่อมต่อเพื่อเริ่ม** แล้วใส่คีย์ Tavily กับ Gemini หรือ Groq อย่างน้อยหนึ่งตัว คีย์อยู่ในหน่วยความจำของแท็บเท่านั้น รีเฟรชแล้วต้องใส่ใหม่ ระหว่างค้นหา คีย์ถูกส่งผ่าน HTTPS ไปยัง API ของ Sift และจากนั้นไปยังบริการที่เลือก ไม่มีการบันทึกคีย์ลงฐานข้อมูลหรือ localStorage
+
+เว็บใช้ Tavily basic search หนึ่งครั้ง และโมเดลหนึ่งครั้งต่อคำถามในกรณีปกติ ต่างจากรุ่นก่อนที่เรียกโมเดลสองรอบ จึงควรตอบเร็วขึ้น แต่ความเร็วจริงยังขึ้นกับ Tavily, โมเดล และเครือข่าย ผลค้นจำกัด 4–5 แหล่งและส่งเฉพาะ excerpt เพื่อควบคุมเวลาและโทเคน
+
+โมเดลต้องระบุรหัสแหล่งข้อมูลและคัดข้อความจาก excerpt มาเป็นหลักฐานให้แต่ละย่อหน้า โปรแกรมตรวจว่ารหัสและข้อความนั้นมีอยู่จริง ก่อนแสดงคำตอบและลิงก์จากผลค้น ไม่มีการตรวจความจริงโดยมนุษย์ และข้อความที่มีอยู่จริงยังอาจถูกตีความผิดได้ เรื่องสำคัญควรเปิดอ่านต้นฉบับ
+
+## โครงสร้างการโฮสต์
+
+- หน้าเว็บ GitHub Pages: `https://rachane16.github.io/sift-search/` เป็นไฟล์ static ใน `docs/`
+- API: `https://sift-search-th.tealshell64.chatgpt.site/api/search` รันบน Sites/Cloudflare Worker เพราะ GitHub Pages ไม่รันโค้ดเซิร์ฟเวอร์
+- API รับคำขอจาก Sift Sites และ `https://rachane16.github.io` เท่านั้นผ่านการตรวจ Origin/CORS ไม่มีคีย์ผู้ให้บริการฝังในไฟล์ GitHub
+- หน้าเว็บและ API เป็นสาธารณะ แต่ผู้ใช้แต่ละคนต้องใช้คีย์ API ของตัวเอง โควตาและค่าใช้จ่ายขึ้นกับบัญชีนั้น
+
+## พัฒนา
+
+Node.js 22.13 ขึ้นไป:
+
+```sh
+npm install
+npm run dev
+npm run build:pages
+node --test tests/search-engine.test.mjs
+node node_modules/typescript/bin/tsc --noEmit
+```
+
+`github-pages/` เป็น entry point สำหรับหน้า static และ `vite.pages.config.ts` สร้างไฟล์ลง `docs/` ส่วน `app/api/search/route.ts` กับ `lib/search-engine.ts` เป็น backend ที่ต้องโฮสต์แยกจาก GitHub Pages
+
+การทดสอบอัตโนมัติจำลองคำตอบจากผู้ให้บริการ ยังไม่ได้ใช้คีย์จริงของผู้ใช้เพื่อวัดเวลาและความแม่นยำปลายทาง
+
+ข้อมูลบริการ: [Tavily Search API](https://docs.tavily.com/documentation/api-reference/endpoint/search), [Gemini API](https://ai.google.dev/gemini-api/docs), [Groq API](https://console.groq.com/docs)
+
